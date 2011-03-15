@@ -12,19 +12,26 @@ function Game(elementID) {
     this.inverseCameraMatrix = new TransformMatrix();
     this.viewWidth = 360;
     this.lookAt = [0, 0];
+    this.mouseCoords = [0, 0];
+    
+    this.setupEvents = function() {
+        var game = this;
+        this.canvas.onmousemove = function (e) { game.mouseCoords = [e.layerX, e.layerY]; };
+    };
     
     this.start = function() {
+        this.setupEvents();
         this.calculateCameraMatrix();
         this.setClearColor(255, 255, 255);
         var intervalTime = 1000 / this.targetFPS;
         intervalTime = Math.floor(intervalTime);
         var game = this;
         this.intervalID = setInterval(function() {game.mainLoop();}, intervalTime);
-    }
+    };
     
     this.stop = function() {
         clearInterval(this.intervalID);
-    }
+    };
     
     this.mainLoop = function() {
         if (! this.squares) {
@@ -41,17 +48,24 @@ function Game(elementID) {
             }
             this.angVel = Math.PI / 16; //Radians per second
             this.lastRunTime = new Date();
+            this.fps = 0;
+            this.setLookAt(30, 0);
+            this.viewAngle = 0;
         } else {
             this.update();
         }
         this.draw();
-    }
+    };
 
     this.update = function() {
         var now = new Date();
         var interval = (now - this.lastRunTime) / 1000;
+        this.fps = Math.floor(1000 / (now - this.lastRunTime));
         this.lastRunTime = now;
         var to_add = this.angVel * interval;
+        
+        this.viewAngle -= (to_add * 4);
+        this.setLookAt(30 * Math.cos(this.viewAngle), 30 * Math.sin(this.viewAngle));
 
         for (var i=0; i < this.squares.length; i++) {
             var item = this.squares[i];
@@ -60,7 +74,7 @@ function Game(elementID) {
             item.x = this.r * Math.cos(angle);
             item.y = this.r * Math.sin(angle);
         }
-    }
+    };
 
     this.draw = function() {
         this.clear();
@@ -76,23 +90,8 @@ function Game(elementID) {
             this.context.restore();
         }
         this.context.restore();
-    }
-    
-    /* Set Clear Color - Sets the clear color (the base color that's set before
-     * each frame is drawn). Clear color defaults to rgb(0,0,0) (black). This
-     * function uses buildColorString and thus has the same input requirements.
-     */
-    this.setClearColor = function(r, g, b, a) {
-        this.clearColor = buildColorString(r, g, b, a);
-    }
-    
-    this.clear = function() {
-        this.context.save();
-        this.context.fillStyle = this.clearColor;
-        this.context.setTransform(1,0,0,1,0,0);
-        this.context.fillRect(0, 0, this.realWidth, this.realHeight);
-        this.context.restore();
-    }
+        this.drawFPS();
+    };
     
     /* Calculate Camera Matrix - Builds the transform matrix for the camera.
      * Called each time the look at point or the view width is set. See
@@ -105,7 +104,8 @@ function Game(elementID) {
         var vertRes = this.viewWidth * this.realRatio;
         this.translateCamera(this.viewWidth / 2, -vertRes / 2);
         this.scaleCamera(newScale, - newScale);
-    }
+        this.translateCamera(this.lookAt[0], this.lookAt[1]);
+    };
     
     /* Set View Width - Sets the value of viewWidth which dictates the world
      * coordinate range shown in the frame. The view width specifies the whole
@@ -115,46 +115,78 @@ function Game(elementID) {
     this.setViewWidth = function(width) {
         this.viewWidth = width;
         this.calculateCameraMatrix();
-    }
+    };
     
     /* Set Look At - Sets the point at which the camera should be looking.
      */
     this.setLookAt = function(x, y) {
         this.lookAt = [x, y];
         this.calculateCameraMatrix();
-    }
+    };
     
     this.resetCamera = function() {
         this.cameraMatrix.reset();
         this.inverseCameraMatrix.reset();
-    }
+    };
     
     this.translateCamera = function(x, y) {
         this.cameraMatrix.translate(x, y);
         this.inverseCameraMatrix.translate(-x, -y, true);
-    }
+    };
     
     this.scaleCamera = function(x, y) {
         this.cameraMatrix.scale(x, y);
         this.inverseCameraMatrix.scale(1/x, 1/y, true);
-    }
+    };
     
     this.rotateCamera = function(angle, deg) {
         this.cameraMatrix.rotate(angle, deg);
         this.inverseCameraMatrix.rotate(angle, deg, true, true);
-    }
+    };
     
     this.setMainLoop = function(loopFunc) {
         Game.prototype.mainLoop = loopFunc;
-    }
+    };
     
     this.setUpdateFunc = function(updateFunc) {
         Game.prototype.update = updateFunc;
-    }
+    };
     
     this.setDrawFunc = function(drawFunc) {
         Game.prototype.draw = drawFunc;
-    }
+    };
+    
+    this.getMouseCoords = function() {
+        return this.mouseCoords;
+    };
+    
+    this.getMouseWorldCoords = function() {
+        return this.cameraMatrix.transformPoint(this.mouseCoords[0], this.mouseCoords[1]);
+    };
+    
+    /* Set Clear Color - Sets the clear color (the base color that's set before
+     * each frame is drawn). Clear color defaults to rgb(0,0,0) (black). This
+     * function uses buildColorString and thus has the same input requirements.
+     */
+    this.setClearColor = function(r, g, b, a) {
+        this.clearColor = buildColorString(r, g, b, a);
+    };
+    
+    this.clear = function() {
+        this.context.save();
+        this.context.fillStyle = this.clearColor;
+        this.context.setTransform(1,0,0,1,0,0);
+        this.context.fillRect(0, 0, this.realWidth, this.realHeight);
+        this.context.restore();
+    };
+    
+    this.drawFPS = function() {
+        this.context.save();
+        this.context.fillStyle = "rgb(0,0,0)";
+        this.context.setTransform(1,0,0,1,0,0);
+        this.context.fillText("FPS: " + this.fps, 10, 10);
+        this.context.restore();
+    };
     
     this.drawAxes = function() {
         this.context.save();
@@ -168,7 +200,7 @@ function Game(elementID) {
         this.context.lineTo(this.realWidth / 2, this.realHeight);
         this.context.stroke();
         this.context.restore();
-    }
+    };
 }
 
 function testing(){
