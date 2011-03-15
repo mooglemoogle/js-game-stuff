@@ -26,7 +26,7 @@ function Game(elementID) {
         clearInterval(this.intervalID);
     }
     
-    function mainLoop() {
+    this.mainLoop = function() {
         if (! this.squares) {
             this.squares = [];
             var numSquares = 20;
@@ -47,7 +47,7 @@ function Game(elementID) {
         this.draw();
     }
 
-    function update() {
+    this.update = function() {
         var now = new Date();
         var interval = (now - this.lastRunTime) / 1000;
         this.lastRunTime = now;
@@ -62,7 +62,7 @@ function Game(elementID) {
         }
     }
 
-    function draw() {
+    this.draw = function() {
         this.clear();
         this.context.save();
         this.cameraMatrix.setTransform(this.context);
@@ -173,9 +173,6 @@ function Game(elementID) {
 
 function testing(){
     var game = new Game('theCanvas');
-    game.setMainLoop(mainLoop);
-    game.setDrawFunc(draw);
-    game.setUpdateFunc(update);
     game.start();
 }
 
