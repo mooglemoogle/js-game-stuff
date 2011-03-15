@@ -26,6 +26,58 @@ function Game(elementID) {
         clearInterval(this.intervalID);
     }
     
+    function mainLoop() {
+        if (! this.squares) {
+            this.squares = [];
+            var numSquares = 20;
+            var angPerSq = (2 * Math.PI / numSquares);
+            this.r = 100;
+            for (var i=0; i < numSquares; i++) {
+                var angle = angPerSq * i;
+                var sq = {x: this.r * Math.cos(angle),
+                          y: this.r * Math.sin(angle),
+                          angle: angle};
+                this.squares.push(sq);
+            }
+            this.angVel = Math.PI / 16; //Radians per second
+            this.lastRunTime = new Date();
+        } else {
+            this.update();
+        }
+        this.draw();
+    }
+
+    function update() {
+        var now = new Date();
+        var interval = (now - this.lastRunTime) / 1000;
+        this.lastRunTime = now;
+        var to_add = this.angVel * interval;
+
+        for (var i=0; i < this.squares.length; i++) {
+            var item = this.squares[i];
+            var angle = item.angle + to_add;
+            item.angle = angle;
+            item.x = this.r * Math.cos(angle);
+            item.y = this.r * Math.sin(angle);
+        }
+    }
+
+    function draw() {
+        this.clear();
+        this.context.save();
+        this.cameraMatrix.setTransform(this.context);
+        this.context.fillStyle = buildColorString(0,0,0);
+        for (var i=0; i < this.squares.length; i++) {
+            var item = this.squares[i];
+            this.context.save();
+            this.context.translate(item.x, item.y);
+            this.context.rotate(item.angle);
+            this.context.fillRect(-5, -5, 10, 10);
+            this.context.restore();
+        }
+        this.context.restore();
+    }
+    
     /* Set Clear Color - Sets the clear color (the base color that's set before
      * each frame is drawn). Clear color defaults to rgb(0,0,0) (black). This
      * function uses buildColorString and thus has the same input requirements.
@@ -119,64 +171,12 @@ function Game(elementID) {
     }
 }
 
-function mainLoop() {
-    if (! this.squares) {
-        this.squares = [];
-        var numSquares = 20;
-        var angPerSq = (2 * Math.PI / numSquares);
-        this.r = 100;
-        for (var i=0; i < numSquares; i++) {
-            var angle = angPerSq * i;
-            var sq = {x: this.r * Math.cos(angle),
-                      y: this.r * Math.sin(angle),
-                      angle: angle};
-            this.squares.push(sq);
-        }
-        this.angVel = Math.PI / 16; //Radians per second
-        this.lastRunTime = new Date();
-    } else {
-        this.update();
-    }
-    this.draw();
-}
-
-function update() {
-    var now = new Date();
-    var interval = (now - this.lastRunTime) / 1000;
-    this.lastRunTime = now;
-    var to_add = this.angVel * interval;
-    
-    for (var i=0; i < this.squares.length; i++) {
-        var item = this.squares[i];
-        var angle = item.angle + to_add;
-        item.angle = angle;
-        item.x = this.r * Math.cos(angle);
-        item.y = this.r * Math.sin(angle);
-    }
-}
-
-function draw() {
-    this.clear();
-    this.context.save();
-    this.cameraMatrix.setTransform(this.context);
-    this.context.fillStyle = buildColorString(0,0,0);
-    for (var i=0; i < this.squares.length; i++) {
-        var item = this.squares[i];
-        this.context.save();
-        this.context.translate(item.x, item.y);
-        this.context.rotate(item.angle);
-        this.context.fillRect(-5, -5, 10, 10);
-        this.context.restore();
-    }
-    this.context.restore();
-}
-
 function testing(){
-var game = new Game('theCanvas');
-game.setMainLoop(mainLoop);
-game.setDrawFunc(draw);
-game.setUpdateFunc(update);
-game.start();
+    var game = new Game('theCanvas');
+    game.setMainLoop(mainLoop);
+    game.setDrawFunc(draw);
+    game.setUpdateFunc(update);
+    game.start();
 }
 
 window.onload = testing;
