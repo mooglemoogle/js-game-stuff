@@ -16,7 +16,10 @@ function Game(elementID) {
     
     this.setupEvents = function() {
         var game = this;
-        this.canvas.onmousemove = function (e) { game.mouseCoords = [e.layerX, e.layerY]; };
+        var mouseDisp = document.getElementById('mousepos');
+        this.canvas.onmousemove = function (e) { 
+            game.mouseCoords = [e.layerX, e.layerY];
+        };
     };
     
     this.start = function() {
@@ -43,7 +46,12 @@ function Game(elementID) {
                 var angle = angPerSq * i;
                 var sq = {x: this.r * Math.cos(angle),
                           y: this.r * Math.sin(angle),
-                          angle: angle};
+                          angle: 0,
+                          rotVel: 0,
+                          circleAngle: angle,
+                          picked: false,
+                          width: 10,
+                          height: 10};
                 this.squares.push(sq);
             }
             this.angVel = Math.PI / 16; //Radians per second
@@ -69,10 +77,17 @@ function Game(elementID) {
 
         for (var i=0; i < this.squares.length; i++) {
             var item = this.squares[i];
-            var angle = item.angle + to_add;
-            item.angle = angle;
-            item.x = this.r * Math.cos(angle);
-            item.y = this.r * Math.sin(angle);
+            item.circleAngle = item.circleAngle + to_add;
+            item.x = this.r * Math.cos(item.circleAngle);
+            item.y = this.r * Math.sin(item.circleAngle);
+            item.picked = false;
+        }
+        
+        for (var i=0; i < this.squares.length; i++) {
+            var item = this.squares[i];
+            item.picked = this.isPicked(item);
+            if (item.picked)
+                break;
         }
     };
 
@@ -84,14 +99,56 @@ function Game(elementID) {
         for (var i=0; i < this.squares.length; i++) {
             var item = this.squares[i];
             this.context.save();
+            if (item.picked)
+                this.context.fillStyle = buildColorString(255,0,0);
             this.context.translate(item.x, item.y);
-            this.context.rotate(item.angle);
+            this.context.rotate(item.circleAngle + item.angle);
             this.context.fillRect(-5, -5, 10, 10);
             this.context.restore();
         }
-        this.context.restore();
         this.drawFPS();
     };
+    
+    this.isPicked = function(square) {
+        var coords = this.getMouseWorldCoords();
+        if (isNaN(coords[0]) || isNaN(coords[1]))
+            return false;
+        var itemMatrix = new TransformMatrix();
+        itemMatrix.rotate(square.angle + square.circleAngle);
+        itemMatrix.translate(square.x, square.y);
+        
+        var dWidth = square.width / 2, dHeight = square.height / 2;
+        var points = [[-dWidth,  dHeight],
+                      [-dWidth, -dHeight],
+                      [ dWidth, -dHeight],
+                      [ dWidth,  dHeight]]
+        
+        for (var i = 0; i < points.length; i++)
+            points[i] = itemMatrix.transformPoint(points[i][0], points[i][1]);
+        
+        if (this.sameSide(points[0], points[1], points[2], coords) &&
+            this.sameSide(points[1], points[2], points[3], coords) &&
+            this.sameSide(points[2], points[3], points[0], coords) &&
+            this.sameSide(points[3], points[0], points[1], coords))
+            return true;
+        else
+            return false;
+    }
+    
+    this.sameSide = function(p1, p2, test1, test2) {
+        var line = [p2[0] - p1[0], p2[1] - p1[1]];
+        var v1 = [test1[0] - p1[0], test1[1] - p1[1]];
+        var v2 = [test2[0] - p1[0], test2[1] - p1[1]];
+        
+        var r1 = this.crossProduct(line, v1);
+        var r2 = this.crossProduct(line, v2);
+        
+        return (r1 * r2) >= 0;
+    }
+    
+    this.crossProduct = function(v1, v2) {
+        return v1[0] * v2[1] - v1[1] * v2[0];
+    }
     
     /* Calculate Camera Matrix - Builds the transform matrix for the camera.
      * Called each time the look at point or the view width is set. See
@@ -161,7 +218,7 @@ function Game(elementID) {
     };
     
     this.getMouseWorldCoords = function() {
-        return this.cameraMatrix.transformPoint(this.mouseCoords[0], this.mouseCoords[1]);
+        return this.inverseCameraMatrix.transformPoint(this.mouseCoords[0], this.mouseCoords[1]);
     };
     
     /* Set Clear Color - Sets the clear color (the base color that's set before
